@@ -2,8 +2,8 @@
 
 module.exports = 
 {
-    // Bot token from BotFather
-    BOT_TOKEN: '8217922250:AAH8qGJ5N7LP8VBsjEeMz0LO2SkQO_kSZBQ',
+    // Bot token from BotFather (use environment variable in production)
+    BOT_TOKEN: process.env.BOT_TOKEN || '8217922250:AAH8qGJ5N7LP8VBsjEeMz0LO2SkQO_kSZBQ',
     
     // Bot username
     BOT_USERNAME: 'space_arcade_bot',
@@ -11,11 +11,11 @@ module.exports =
     // Game server settings
     GAME_PORT: process.env.PORT || 3000,
     
-    // Game URL (IMPORTANT: Change this to your public URL from ngrok or your hosting)
-    // Example: https://abc123.ngrok.io
-    GAME_URL: process.env.GAME_URL || 'https://operators-ship-valid-stuff.trycloudflare.com',
+    // Game URL (auto-detect Railway URL or use local)
+    GAME_URL: process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : (process.env.GAME_URL || 'http://localhost:3000'),
     
     // Game settings
     GAME_TIMEOUT: 30 * 60 * 1000, // 30 minutes in milliseconds
 };
-

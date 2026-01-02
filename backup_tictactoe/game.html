@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tic Tac Toe</title>
+    <script src="https://telegram.org/js/games.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * 
+        {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body 
+        {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            overflow: hidden;
+        }
+
+        .container 
+        {
+            text-align: center;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 
+        {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-info 
+        {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status 
+        {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .players 
+        {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .board 
+        {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .cell 
+        {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 15px;
+            font-size: 3em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .cell:hover:not(.taken) 
+        {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .cell.taken 
+        {
+            cursor: not-allowed;
+        }
+
+        .cell.x 
+        {
+            color: #667eea;
+        }
+
+        .cell.o 
+        {
+            color: #764ba2;
+        }
+
+        .waiting 
+        {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .waiting h2 
+        {
+            margin-bottom: 15px;
+        }
+
+        .spinner 
+        {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin 
+        {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .game-over 
+        {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-over h2 
+        {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .btn 
+        {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+
+        .btn:hover 
+        {
+            transform: scale(1.05);
+        }
+
+        .error 
+        {
+            background: rgba(255, 100, 100, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .invite-section 
+        {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .invite-btn 
+        {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+        }
+
+        .copy-btn 
+        {
+            background: linear-gradient(135deg, #0984e3 0%, #74b9ff 100%);
+        }
+
+        .back-btn 
+        {
+            background: linear-gradient(135deg, #636e72 0%, #b2bec3 100%);
+            margin-top: 15px;
+        }
+
+        .recent-players 
+        {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .recent-players h3 
+        {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .recent-player-item 
+        {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+
+        .recent-player-item:hover 
+        {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .player-info 
+        {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-avatar 
+        {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+
+        .player-name 
+        {
+            font-weight: 500;
+        }
+
+        .invite-player-btn 
+        {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: transform 0.2s;
+        }
+
+        .invite-player-btn:hover 
+        {
+            transform: scale(1.05);
+        }
+
+        .toast 
+        {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 0.95em;
+            z-index: 1000;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut 
+        {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Tic Tac Toe</h1>
+        
+        <div id="waitingScreen" class="waiting">
+            <h2>Choose Game Mode</h2>
+            <button class="btn" onclick="startComputerGame()">🤖 Play vs Computer</button>
+            <button class="btn" onclick="startMultiplayerGame()">👥 Play vs Friend</button>
+        </div>
+
+        <div id="multiplayerWaiting" class="waiting" style="display: none;">
+            <h2>⏳ Waiting for opponent...</h2>
+            <div class="spinner"></div>
+            <p>Share this game with a friend!</p>
+            
+            <div class="invite-section">
+                <button class="btn invite-btn" onclick="inviteFriend()">📤 Invite Friend</button>
+                <button class="btn copy-btn" onclick="copyGameLink()">📋 Copy Link</button>
+            </div>
+            
+            <div id="recentPlayers" class="recent-players" style="display: none;">
+                <h3>👥 Recent Players</h3>
+                <div id="recentPlayersList"></div>
+            </div>
+            
+            <button class="btn back-btn" onclick="backToMenu()">🔙 Back</button>
+        </div>
+
+        <div id="gameScreen" style="display: none;">
+            <div class="game-info">
+                <div class="status" id="status">Your turn!</div>
+                <div class="players" id="players"></div>
+            </div>
+
+            <div class="board" id="board"></div>
+
+            <div id="gameOverScreen" class="game-over" style="display: none;">
+                <h2 id="resultText"></h2>
+                <button class="btn" onclick="playAgain()">🔄 Play Again</button>
+            </div>
+        </div>
+
+        <div id="errorScreen" class="error" style="display: none;">
+            <h2>❌ Connection Error</h2>
+            <p id="errorMessage"></p>
+            <button class="btn" onclick="location.reload()">🔄 Retry</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io({
+            extraHeaders: {
+                "ngrok-skip-browser-warning": "true"
+            }
+        });
+        let gameId = null;
+        let playerId = null;
+        let playerSymbol = null;
+        let gameState = null;
+        let myTurn = false;
+        let isComputerMode = false;
+        let computerBoard = null;
+        let playerName = null;
+
+        // Get game data from Telegram
+        const urlParams = new URLSearchParams(window.location.search);
+        gameId = urlParams.get('game_id') || 'game_' + Math.random().toString(36).substr(2, 9);
+
+        // Get Telegram user data
+        if (window.Telegram && window.Telegram.WebApp) 
+        {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            const user = tg.initDataUnsafe.user;
+            if (user) 
+            {
+                playerId = user.id;
+                playerName = user.first_name || user.username || `Player ${user.id.toString().slice(-4)}`;
+            }
+        }
+
+        // Fallback if not in Telegram
+        if (!playerId) 
+        {
+            playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+            playerName = `Guest ${playerId.slice(-4)}`;
+        }
+
+        // Don't auto-join, wait for mode selection
+        // socket.emit('joinGame', { gameId, playerId, playerName });
+
+        // Socket event listeners
+        socket.on('waiting', () => 
+        {
+            document.getElementById('multiplayerWaiting').style.display = 'block';
+            document.getElementById('gameScreen').style.display = 'none';
+        });
+
+        socket.on('gameStart', (data) => 
+        {
+            document.getElementById('multiplayerWaiting').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            
+            playerSymbol = data.symbol;
+            gameState = data.gameState;
+            myTurn = data.currentTurn === playerId;
+            
+            // Save opponent to recent players
+            if (data.opponentId) 
+            {
+                saveRecentPlayer(data.opponentId, data.opponentName);
+            }
+            
+            updatePlayers(data.gameState);
+            renderBoard();
+            updateStatus();
+        });
+
+        socket.on('gameUpdate', (data) => 
+        {
+            gameState = data.gameState;
+            myTurn = data.currentTurn === playerId;
+            renderBoard();
+            updateStatus();
+        });
+
+        socket.on('gameOver', (data) => 
+        {
+            gameState = data.gameState;
+            renderBoard();
+            showGameOver(data.winner, data.isDraw);
+        });
+
+        socket.on('opponentLeft', () => 
+        {
+            document.getElementById('status').textContent = '❌ Opponent left the game';
+            setTimeout(() => location.reload(), 3000);
+        });
+
+        socket.on('error', (data) => 
+        {
+            document.getElementById('errorScreen').style.display = 'block';
+            document.getElementById('errorMessage').textContent = data.message;
+        });
+
+        function renderBoard() 
+        {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            
+            if (!gameState) return;
+            
+            for (let row = 0; row < 3; row++) 
+            {
+                for (let col = 0; col < 3; col++) 
+                {
+                    const cell = document.createElement('button');
+                    cell.className = 'cell';
+                    const value = gameState.board[row][col];
+                    
+                    if (value === 'X') 
+                    {
+                        cell.textContent = '❌';
+                        cell.classList.add('taken', 'x');
+                    }
+                    else if (value === 'O') 
+                    {
+                        cell.textContent = '⭕';
+                        cell.classList.add('taken', 'o');
+                    }
+                    else 
+                    {
+                        cell.textContent = '';
+                        if (myTurn && gameState.status === 'active') 
+                        {
+                            cell.onclick = () => makeMove(row, col);
+                        }
+                        else 
+                        {
+                            cell.classList.add('taken');
+                        }
+                    }
+                    
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function makeMove(row, col) 
+        {
+            if (!myTurn || gameState.status !== 'active') return;
+            
+            if (isComputerMode) 
+            {
+                // Computer mode - handle locally
+                if (computerBoard[row][col] !== null) return;
+                
+                computerBoard[row][col] = 'X';
+                gameState.board = computerBoard;
+                myTurn = false;
+                renderBoard();
+                updateStatus();
+                
+                const winner = checkWinner(computerBoard);
+                if (winner || isBoardFull(computerBoard)) 
+                {
+                    showGameOver(winner, !winner && isBoardFull(computerBoard));
+                }
+                else 
+                {
+                    makeComputerMove();
+                }
+            }
+            else 
+            {
+                // Multiplayer mode - use socket
+                socket.emit('makeMove', { gameId, playerId, row, col });
+            }
+        }
+
+        function updateStatus() 
+        {
+            const statusEl = document.getElementById('status');
+            if (myTurn) 
+            {
+                statusEl.textContent = `🎯 Your turn! (${playerSymbol === 'X' ? '❌' : '⭕'})`;
+            }
+            else 
+            {
+                statusEl.textContent = '⏳ Opponent\'s turn...';
+            }
+        }
+
+        function updatePlayers(state) 
+        {
+            const playersEl = document.getElementById('players');
+            playersEl.textContent = `You: ${playerSymbol === 'X' ? '❌' : '⭕'}`;
+        }
+
+        function showGameOver(winner, isDraw) 
+        {
+            const gameOverEl = document.getElementById('gameOverScreen');
+            const resultText = document.getElementById('resultText');
+            
+            if (isDraw) 
+            {
+                resultText.textContent = '🤝 It\'s a Draw!';
+            }
+            else if (winner === playerId) 
+            {
+                resultText.textContent = '🎉 You Won!';
+                // Try to set score in Telegram
+                if (window.TelegramGameProxy) 
+                {
+                    window.TelegramGameProxy.shareScore();
+                }
+                else if (window.Telegram && window.Telegram.WebApp) 
+                {
+                    // Fallback for WebApps if needed, though shareScore is for Games
+                    console.log("Game over - WebApp mode");
+                }
+            }
+            else 
+            {
+                resultText.textContent = '😔 You Lost!';
+            }
+            
+            gameOverEl.style.display = 'block';
+        }
+
+        function playAgain() 
+        {
+            location.reload();
+        }
+
+        // Mode selection functions
+        function startComputerGame() 
+        {
+            isComputerMode = true;
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            
+            // Initialize computer game
+            playerSymbol = 'X';
+            computerBoard = [
+                [null, null, null],
+                [null, null, null],
+                [null, null, null]
+            ];
+            gameState = {
+                board: computerBoard,
+                status: 'active',
+                currentPlayer: 'X'
+            };
+            myTurn = true;
+            
+            updatePlayers({ player1: { symbol: 'X' }, player2: { symbol: 'O' } });
+            renderBoard();
+            updateStatus();
+        }
+
+        function startMultiplayerGame() 
+        {
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('multiplayerWaiting').style.display = 'block';
+            loadRecentPlayers();
+            socket.emit('joinGame', { gameId, playerId, playerName });
+        }
+
+        function backToMenu() 
+        {
+            document.getElementById('multiplayerWaiting').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'block';
+        }
+
+        // Computer AI - Simple random move
+        function makeComputerMove() 
+        {
+            const emptyCells = [];
+            for (let row = 0; row < 3; row++) 
+            {
+                for (let col = 0; col < 3; col++) 
+                {
+                    if (computerBoard[row][col] === null) 
+                    {
+                        emptyCells.push({ row, col });
+                    }
+                }
+            }
+            
+            if (emptyCells.length > 0) 
+            {
+                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                const { row, col } = emptyCells[randomIndex];
+                
+                setTimeout(() => 
+                {
+                    computerBoard[row][col] = 'O';
+                    gameState.board = computerBoard;
+                    
+                    const winner = checkWinner(computerBoard);
+                    if (winner || isBoardFull(computerBoard)) 
+                    {
+                        renderBoard();
+                        showGameOver(winner, !winner && isBoardFull(computerBoard));
+                    }
+                    else 
+                    {
+                        myTurn = true;
+                        renderBoard();
+                        updateStatus();
+                    }
+                }, 500);
+            }
+        }
+
+        function checkWinner(board) 
+        {
+            // Check rows
+            for (let row = 0; row < 3; row++) 
+            {
+                if (board[row][0] && board[row][0] === board[row][1] && board[row][1] === board[row][2]) 
+                {
+                    return board[row][0];
+                }
+            }
+            
+            // Check columns
+            for (let col = 0; col < 3; col++) 
+            {
+                if (board[0][col] && board[0][col] === board[1][col] && board[1][col] === board[2][col]) 
+                {
+                    return board[0][col];
+                }
+            }
+            
+            // Check diagonals
+            if (board[0][0] && board[0][0] === board[1][1] && board[1][1] === board[2][2]) 
+            {
+                return board[0][0];
+            }
+            if (board[0][2] && board[0][2] === board[1][1] && board[1][1] === board[2][0]) 
+            {
+                return board[0][2];
+            }
+            
+            return null;
+        }
+
+        function isBoardFull(board) 
+        {
+            for (let row = 0; row < 3; row++) 
+            {
+                for (let col = 0; col < 3; col++) 
+                {
+                    if (board[row][col] === null) return false;
+                }
+            }
+            return true;
+        }
+
+        // ==================== FRIENDS SYSTEM ====================
+
+        // Get game invite link
+        function getGameLink() 
+        {
+            const baseUrl = window.location.origin;
+            return `${baseUrl}/game?game_id=${gameId}`;
+        }
+
+        // Invite friend via Telegram share
+        function inviteFriend() 
+        {
+            const link = getGameLink();
+            
+            // Try Telegram share first
+            if (window.TelegramGameProxy) 
+            {
+                window.TelegramGameProxy.shareScore();
+            }
+            else if (window.Telegram && window.Telegram.WebApp) 
+            {
+                // Use Telegram WebApp share
+                const tg = window.Telegram.WebApp;
+                const shareText = `🎮 Join my Tic Tac Toe game!\n\n${link}`;
+                
+                // Try to open share dialog
+                if (tg.openTelegramLink) 
+                {
+                    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🎮 Join my Tic Tac Toe game!')}`);
+                }
+                else 
+                {
+                    // Fallback - copy to clipboard
+                    copyGameLink();
+                }
+            }
+            else 
+            {
+                // Not in Telegram - copy link
+                copyGameLink();
+            }
+        }
+
+        // Copy game link to clipboard
+        function copyGameLink() 
+        {
+            const link = getGameLink();
+            
+            if (navigator.clipboard) 
+            {
+                navigator.clipboard.writeText(link).then(() => 
+                {
+                    showToast('📋 Link copied! Share it with a friend.');
+                }).catch(() => 
+                {
+                    fallbackCopyLink(link);
+                });
+            }
+            else 
+            {
+                fallbackCopyLink(link);
+            }
+        }
+
+        // Fallback copy method
+        function fallbackCopyLink(link) 
+        {
+            const textArea = document.createElement('textarea');
+            textArea.value = link;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try 
+            {
+                document.execCommand('copy');
+                showToast('📋 Link copied! Share it with a friend.');
+            }
+            catch (err) 
+            {
+                showToast('❌ Could not copy link');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Show toast notification
+        function showToast(message) 
+        {
+            // Remove existing toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) existingToast.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // Save player to recent list
+        function saveRecentPlayer(opponentId, opponentName) 
+        {
+            if (!opponentId || opponentId === playerId) return;
+            
+            let recentPlayers = JSON.parse(localStorage.getItem('ttt_recent_players') || '[]');
+            
+            // Remove if already exists
+            recentPlayers = recentPlayers.filter(p => p.id !== opponentId);
+            
+            // Add to beginning
+            recentPlayers.unshift({
+                id: opponentId,
+                name: opponentName || `Player ${opponentId.toString().slice(-4)}`,
+                lastPlayed: Date.now()
+            });
+            
+            // Keep only last 10
+            recentPlayers = recentPlayers.slice(0, 10);
+            
+            localStorage.setItem('ttt_recent_players', JSON.stringify(recentPlayers));
+        }
+
+        // Load and display recent players
+        function loadRecentPlayers() 
+        {
+            const recentPlayers = JSON.parse(localStorage.getItem('ttt_recent_players') || '[]');
+            const container = document.getElementById('recentPlayers');
+            const list = document.getElementById('recentPlayersList');
+            
+            if (recentPlayers.length === 0) 
+            {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            list.innerHTML = '';
+            
+            recentPlayers.slice(0, 5).forEach(player => 
+            {
+                const item = document.createElement('div');
+                item.className = 'recent-player-item';
+                item.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-avatar">👤</div>
+                        <span class="player-name">${escapeHtml(player.name)}</span>
+                    </div>
+                    <button class="invite-player-btn" onclick="invitePlayer('${player.id}')">
+                        📤 Invite
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Invite specific player
+        function invitePlayer(targetPlayerId) 
+        {
+            const link = getGameLink();
+            
+            if (window.Telegram && window.Telegram.WebApp) 
+            {
+                const tg = window.Telegram.WebApp;
+                // Try to send to specific user via share
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🎮 Join my Tic Tac Toe game!')}`);
+            }
+            else 
+            {
+                copyGameLink();
+            }
+            
+            showToast('📤 Invite sent!');
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) 
+        {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+    <script src="https://telegram.org/js/games.js"></script>
+</body>
+</html>
+

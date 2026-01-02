@@ -58,3 +58,4 @@ A real-time multiplayer Tic Tac Toe HTML5 game for Telegram built with Node.js, 
 - For production, use Heroku/Railway/Vercel
 - Keep tunnel and bot running simultaneously
 
+# telegram-game

@@ -33,6 +33,7 @@ var selectedCharacter = null;
 var isHost = false;
 var gameMode = 'pvp';
 var isBlocking = false;
+var cpuIsBlocking = false; // CPU blocking state
 var comboCount = 0;
 var lastAttackTime = 0;
 
@@ -48,8 +49,8 @@ var SUPER_UNLOCK_TIME = 30;
 var ROUNDS_TO_WIN = 2;
 
 // Game variables
-var myHealth = 100;
-var opponentHealth = 100;
+var myHealth = 300;
+var opponentHealth = 300;
 var gameActive = false;
 
 // Character definitions
@@ -70,8 +71,18 @@ document.addEventListener('DOMContentLoaded', function()
         var urlParams = new URLSearchParams(window.location.search);
         gameId = urlParams.get('game_id') || 'fight_' + Math.random().toString(36).substr(2, 9);
 
-        // Get Telegram user data
-        if (window.Telegram && window.Telegram.WebApp) 
+        // Try to get player info from URL parameters first
+        var urlPlayerId = urlParams.get('player_id');
+        var urlPlayerName = urlParams.get('player_name');
+        
+        if (urlPlayerId && urlPlayerName) 
+        {
+            playerId = urlPlayerId;
+            playerName = decodeURIComponent(urlPlayerName);
+            console.log('✅ Got player info from URL:', playerName, playerId);
+        }
+        // Fallback to Telegram WebApp data
+        else if (window.Telegram && window.Telegram.WebApp) 
         {
             var tg = window.Telegram.WebApp;
             tg.ready();
@@ -81,15 +92,19 @@ document.addEventListener('DOMContentLoaded', function()
                 var user = tg.initDataUnsafe.user;
                 playerId = user.id;
                 playerName = user.first_name || user.username || 'Fighter';
+                console.log('✅ Got player info from Telegram:', playerName, playerId);
             }
         }
 
+        // Generate random ID if nothing worked
         if (!playerId) 
         {
             playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+            playerName = 'Fighter';
+            console.log('✅ Generated random player:', playerName, playerId);
         }
         
-        console.log('✅ Game initialized! Player:', playerName);
+        console.log('✅ Game initialized! GameID:', gameId, 'Player:', playerName, '(' + playerId + ')');
     }
     catch (err) 
     {
@@ -249,9 +264,9 @@ function startRound()
 {
     try 
     {
-        myHealth = 100;
-        opponentHealth = 100;
-        gameActive = true;
+        myHealth = 300;
+        opponentHealth = 300;
+        gameActive = false; // Keep disabled during countdown
         isHost = true;
         superUnlocked = false;
         roundTimer = 60;
@@ -266,6 +281,7 @@ function startRound()
         setTimeout(function() 
         {
             showRoundText('FIGHT!');
+            gameActive = true; // Enable attacks only after "FIGHT!" is shown
             startRoundTimer();
         }, 1500);
     }
@@ -440,36 +456,157 @@ function checkMatchEnd()
 
 function startCpuAI() 
 {
+    var cpuLastAction = 0;
+    var cpuCombo = 0;
+    var cpuBlockEndTime = 0;
+    
+    // Function to visually show CPU blocking
+    function setCpuBlock(shouldBlock, duration) 
+    {
+        var fighter2 = document.getElementById('fighter2');
+        if (!fighter2) return;
+        
+        if (shouldBlock) 
+        {
+            cpuIsBlocking = true;
+            fighter2.classList.add('blocking');
+            cpuBlockEndTime = Date.now() + duration;
+            
+            setTimeout(function() 
+            {
+                cpuIsBlocking = false;
+                fighter2.classList.remove('blocking');
+            }, duration);
+        }
+        else 
+        {
+            cpuIsBlocking = false;
+            fighter2.classList.remove('blocking');
+        }
+    }
+    
     var cpuLoop = setInterval(function() 
     {
-        if (!gameActive) 
+        // Stop AI if match is over (someone won 2 rounds)
+        if (player1Wins >= ROUNDS_TO_WIN || player2Wins >= ROUNDS_TO_WIN) 
         {
             clearInterval(cpuLoop);
             return;
         }
         
+        // Wait if game is not active (during countdown)
+        if (!gameActive) 
+        {
+            return;
+        }
+        
+        var now = Date.now();
+        
+        // Skip if CPU is currently blocking
+        if (cpuIsBlocking && now < cpuBlockEndTime) 
+        {
+            return;
+        }
+        
+        // Enforce 1.5 second interval between actions
+        if (now - cpuLastAction < 1500) return;
+        
+        // Calculate health percentages
+        var myHealthPercent = (myHealth / 300) * 100;
+        var cpuHealthPercent = (opponentHealth / 300) * 100;
+        
+        // Strategic decision making
         var action = Math.random();
-        if (action < 0.4) 
+        
+        // Random blocking (20% chance) - duration between 0.5-2 seconds
+        if (action < 0.2) 
         {
+            var blockDuration = 500 + Math.random() * 1500; // 0.5-2 seconds
+            setCpuBlock(true, blockDuration);
+            cpuLastAction = now;
+            return;
+        }
+        
+        // If CPU health is low, be more defensive
+        if (cpuHealthPercent < 30) 
+        {
+            if (action < 0.4) 
+            {
+                // Block more often when low health (1-2 seconds)
+                var blockDuration = 1000 + Math.random() * 1000;
+                setCpuBlock(true, blockDuration);
+                cpuLastAction = now;
+                return;
+            }
+            else if (superUnlocked && action < 0.7) 
+            {
+                // Use super when desperate
+                cpuSpecialAttack();
+                cpuLastAction = now;
+                cpuCombo = 0;
+                return;
+            }
+        }
+        
+        // If player health is low, be aggressive
+        if (myHealthPercent < 30) 
+        {
+            if (superUnlocked && action < 0.6) 
+            {
+                cpuSpecialAttack();
+                cpuLastAction = now;
+                cpuCombo = 0;
+                return;
+            }
+            else if (action < 0.9) 
+            {
+                cpuAttack('kick'); // Use stronger attacks
+                cpuLastAction = now;
+                cpuCombo++;
+                return;
+            }
+        }
+        
+        // Normal fighting strategy
+        if (action < 0.5) 
+        {
+            // Quick punches
             cpuAttack('punch');
+            cpuLastAction = now;
+            cpuCombo++;
         }
-        else if (action < 0.7) 
+        else if (action < 0.8) 
         {
+            // Power kicks
             cpuAttack('kick');
+            cpuLastAction = now;
+            cpuCombo++;
         }
-        else if (superUnlocked && Math.random() < 0.3) 
+        else if (superUnlocked && action < 0.95) 
         {
+            // Strategic super usage
             cpuSpecialAttack();
+            cpuLastAction = now;
+            cpuCombo = 0;
         }
-    }, 1000);
+        
+        // Reset combo after 3 hits - block for 0.8-1.5 seconds
+        if (cpuCombo >= 3) 
+        {
+            var blockDuration = 800 + Math.random() * 700;
+            setCpuBlock(true, blockDuration);
+            cpuLastAction = now;
+            cpuCombo = 0;
+        }
+    }, 500); // Check every 500ms
 }
 
 function cpuAttack(type) 
 {
     if (!gameActive) return;
     
-    var baseDamage = type === 'punch' ? 8 : 12;
-    var maxDamage = type === 'punch' ? 12 : 18;
+    var baseDamage = type === 'punch' ? 12 : 18;
+    var maxDamage = type === 'punch' ? 18 : 25;
     var damage = baseDamage + Math.floor(Math.random() * (maxDamage - baseDamage));
     var actualDamage = isBlocking ? Math.floor(damage * 0.2) : damage;
     
@@ -509,7 +646,7 @@ function cpuSpecialAttack()
 {
     if (!gameActive || !superUnlocked) return;
     
-    var damage = 30 + Math.floor(Math.random() * 15);
+    var damage = 40 + Math.floor(Math.random() * 20);
     var actualDamage = isBlocking ? Math.floor(damage * 0.4) : damage;
     
     myHealth = Math.max(0, myHealth - actualDamage);
@@ -545,16 +682,26 @@ function attack(type)
     
     if (gameMode === 'cpu') 
     {
-        opponentHealth = Math.max(0, opponentHealth - damage);
+        // Check if CPU is blocking
+        var actualDamage = cpuIsBlocking ? Math.floor(damage * 0.2) : damage;
+        opponentHealth = Math.max(0, opponentHealth - actualDamage);
         updateHealthBars();
         
         var fighter2 = document.getElementById('fighter2');
-        if (fighter2) 
+        
+        // Only show hit animation if not blocking
+        if (!cpuIsBlocking && fighter2) 
         {
             fighter2.classList.add('hit');
             setTimeout(function() { fighter2.classList.remove('hit'); }, 300);
         }
-        showDamage('fighter2', damage);
+        
+        if (cpuIsBlocking) 
+        {
+            showToast('🛡️ CPU BLOCKED!');
+        }
+        
+        showDamage('fighter2', actualDamage);
         
         if (opponentHealth <= 0) 
         {
@@ -584,9 +731,26 @@ function specialAttack()
     
     if (gameMode === 'cpu') 
     {
-        opponentHealth = Math.max(0, opponentHealth - damage);
+        // Check if CPU is blocking (super attacks have less reduction)
+        var actualDamage = cpuIsBlocking ? Math.floor(damage * 0.4) : damage;
+        opponentHealth = Math.max(0, opponentHealth - actualDamage);
         updateHealthBars();
-        showDamage('fighter2', damage);
+        
+        var fighter2 = document.getElementById('fighter2');
+        
+        // Only show hit animation if not blocking
+        if (!cpuIsBlocking && fighter2) 
+        {
+            fighter2.classList.add('hit');
+            setTimeout(function() { fighter2.classList.remove('hit'); }, 300);
+        }
+        
+        if (cpuIsBlocking) 
+        {
+            showToast('🛡️ CPU BLOCKED! (60% damage)');
+        }
+        
+        showDamage('fighter2', actualDamage);
         
         if (opponentHealth <= 0) 
         {
@@ -628,15 +792,19 @@ function updateHealthBars()
     var t1 = document.getElementById('player1HealthText');
     var t2 = document.getElementById('player2HealthText');
     
+    var maxHealth = 300;
+    var myHealthPercent = (myHealth / maxHealth) * 100;
+    var oppHealthPercent = (opponentHealth / maxHealth) * 100;
+    
     if (h1) 
     {
-        h1.style.width = myHealth + '%';
-        h1.className = 'health-bar' + (myHealth < 20 ? ' critical' : myHealth < 50 ? ' low' : '');
+        h1.style.width = myHealthPercent + '%';
+        h1.className = 'health-bar' + (myHealthPercent < 20 ? ' critical' : myHealthPercent < 50 ? ' low' : '');
     }
     if (h2) 
     {
-        h2.style.width = opponentHealth + '%';
-        h2.className = 'health-bar' + (opponentHealth < 20 ? ' critical' : opponentHealth < 50 ? ' low' : '');
+        h2.style.width = oppHealthPercent + '%';
+        h2.className = 'health-bar' + (oppHealthPercent < 20 ? ' critical' : oppHealthPercent < 50 ? ' low' : '');
     }
     if (t1) t1.textContent = Math.round(myHealth);
     if (t2) t2.textContent = Math.round(opponentHealth);
@@ -752,12 +920,22 @@ socket.on('fightStart', function(data)
     document.getElementById('fighter1Sprite').textContent = myChar ? myChar.emoji : '👤';
     document.getElementById('fighter2Sprite').textContent = oppChar ? oppChar.emoji : '👤';
     
-    myHealth = 100;
-    opponentHealth = 100;
-    gameActive = true;
+    myHealth = 300;
+    opponentHealth = 300;
+    gameActive = false; // Keep disabled during countdown
+    roundStartTime = Date.now();
+    lockSuperAttack();
     
     updateHealthBars();
-    showRoundText('FIGHT!');
+    showRoundText('ROUND ' + currentRound);
+    
+    // Start fight after countdown
+    setTimeout(function() 
+    {
+        showRoundText('FIGHT!');
+        gameActive = true; // Enable attacks only after "FIGHT!" is shown
+        startRoundTimer();
+    }, 1500);
 });
 
 socket.on('opponentAction', function(data) 

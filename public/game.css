@@ -733,3 +733,204 @@ body
 .player1 .combo-display { left: 20px; }
 .player2 .combo-display { right: 20px; }
 
+/* Responsive Design for Mobile */
+@media screen and (max-width: 768px) {
+    .game-logo {
+        font-size: 2em;
+    }
+    
+    .menu-btn {
+        padding: 15px 40px;
+        font-size: 1.1em;
+        width: 90%;
+        max-width: 300px;
+    }
+    
+    .character-card {
+        min-width: 120px;
+    }
+    
+    .health-section {
+        padding: 10px 5px;
+        font-size: 0.85em;
+    }
+    
+    .player-health {
+        max-width: 35%;
+    }
+    
+    .round-info {
+        flex-shrink: 0;
+        padding: 0 5px;
+    }
+    
+    .round-number {
+        font-size: 0.9em;
+    }
+    
+    .round-timer {
+        font-size: 1.8em;
+    }
+    
+    .fighter-sprite {
+        font-size: 3em;
+    }
+    
+    /* Larger, more responsive controls for mobile */
+    .controls {
+        padding: 20px 10px;
+        gap: 15px;
+    }
+    
+    .control-group {
+        gap: 15px;
+    }
+    
+    .control-btn {
+        width: 80px;
+        height: 80px;
+        font-size: 2em;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .btn-special {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .control-label {
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .game-logo {
+        font-size: 1.5em;
+    }
+    
+    .subtitle {
+        font-size: 1em;
+    }
+    
+    .menu-btn {
+        padding: 12px 30px;
+        font-size: 1em;
+    }
+    
+    .select-title {
+        font-size: 1.5em;
+    }
+    
+    .character-card {
+        min-width: 100px;
+    }
+    
+    .character-emoji {
+        font-size: 2em;
+    }
+    
+    .character-name {
+        font-size: 0.9em;
+    }
+    
+    .health-section {
+        font-size: 0.9em;
+    }
+    
+    .round-number {
+        font-size: 1.2em;
+    }
+    
+    .round-timer {
+        font-size: 2em;
+    }
+    
+    .fighter-sprite {
+        font-size: 2.5em;
+    }
+    
+    /* Even larger controls for very small screens */
+    .controls {
+        padding: 15px 5px;
+    }
+    
+    .control-group {
+        gap: 12px;
+    }
+    
+    .control-btn {
+        width: 75px;
+        height: 75px;
+        font-size: 1.8em;
+        border-width: 2px;
+    }
+    
+    .btn-special {
+        width: 85px;
+        height: 85px;
+    }
+    
+    .control-label {
+        font-size: 0.7em;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    .health-section {
+        flex-direction: row;
+        padding: 5px;
+    }
+    
+    .round-info {
+        order: 0;
+    }
+    
+    .round-number {
+        font-size: 1em;
+    }
+    
+    .round-timer {
+        font-size: 1.5em;
+    }
+    
+    .fighter-sprite {
+        font-size: 2em;
+    }
+    
+    .controls {
+        padding: 10px 5px;
+    }
+    
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5em;
+    }
+    
+    .btn-special {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .control-label {
+        font-size: 0.6em;
+    }
+}
+
+/* Touch device optimization */
+@media (hover: none) and (pointer: coarse) {
+    .control-btn {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+    
+    .control-btn:active {
+        transform: scale(0.85);
+        opacity: 0.8;
+    }
+}
+

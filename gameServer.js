@@ -315,9 +315,21 @@ class GameServer
 
     start() 
     {
-        this.server.listen(this.port, () => 
+        this.server.on('error', (err) => 
         {
-            console.log(`🔥 Friend Fighter server running on http://localhost:${this.port}`);
+            if (err.code === 'EADDRINUSE') 
+            {
+                console.log(`⚠️ Port ${this.port} is already in use. Skipping server start.`);
+                console.log(`⚔️ Game URL: http://localhost:${this.port}/game`);
+                return;
+            }
+            console.error('Server error:', err);
+            process.exit(1);
+        });
+        
+        this.server.listen(this.port, '0.0.0.0', () => 
+        {
+            console.log(`🔥 Friend Fighter server running on port ${this.port}`);
             console.log(`⚔️ Game URL: http://localhost:${this.port}/game`);
         });
     }

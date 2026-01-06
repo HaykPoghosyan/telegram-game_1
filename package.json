@@ -5,6 +5,7 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
+    "server": "node -e \"const GameServer = require('./gameServer'); new GameServer(3000).start();\"",
     "ngrok": "ngrok http 3000",
     "tunnel": "lt --port 3000",
     "test": "echo \"Error: no test specified\" && exit 1"
